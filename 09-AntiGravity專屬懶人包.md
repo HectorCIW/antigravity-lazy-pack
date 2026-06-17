@@ -1,4 +1,4 @@
-﻿# Anti-Gravity 懶人包 #09：服務連接與工作流程設定
+# Anti-Gravity 懶人包 #09：服務連接與工作流程設定
 
 > 版本：v1.4
 > 更新日期：2026-05-31
@@ -20,6 +20,7 @@
 - [ ] 有 Google 帳號，可登入 NotebookLM / Firebase
 - [ ] 有 GitHub 帳號
 - [ ] 已有 Obsidian vault，或知道筆記本資料夾位置
+- [ ] 已安裝並編譯 `nrf-mcp` 伺服器以連線 Nordic nRF Connect SDK
 
 Windows 快速檢查：
 
@@ -309,6 +310,36 @@ Anti-Gravity 可使用專案根目錄的 `ANTIGRAVITY.md` 作為 AI 工作規則
 - Obsidian 專案駕駛艙
 
 如果資料夾已經是既有專案，先盤點「已存在 / 缺少」清單，只補缺口，不覆蓋既有設定。
+
+---
+
+## 七、連接 Nordic nRF MCP
+
+### 說明
+此 MCP 伺服器可協助 AI 在開發 Nordic nRF5340 等晶片時，直接搜尋並讀取 nRF Connect SDK 中的範例專案、硬體設定檔（DeviceTree）及 Kconfig 設定，大幅提升程式碼生成的準確度。
+
+### 安裝步驟
+
+1. **複製與編譯伺服器**：
+   ```bash
+   git clone https://github.com/pshanesmith/nrf-mcp.git ~/Documents/nrf-mcp
+   cd ~/Documents/nrf-mcp
+   npm install
+   npm run build
+   ```
+
+2. **註冊 MCP 到設定檔**：
+   在 `mcp_config.json` 的 `mcpServers` 下方加入以下註冊片段：
+   ```json
+   "nrf-mcp": {
+     "command": "/bin/bash",
+     "args": [
+       "/Users/wujunyi/Documents/nrf-mcp/run.sh"
+     ]
+   }
+   ```
+
+3. **重新啟動 AntiGravity** 並嘗試搜尋以進行驗證。
 
 ---
 
