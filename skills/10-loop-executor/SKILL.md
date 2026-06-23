@@ -4,15 +4,11 @@ description: Use at the start of any multi-step task (3+ iterations expected) to
 ---
 # Loop Executor
 
-## Purpose
+> For detailed design rationale and examples, read `references/rationale.md`.
 
-Transforms a multi-step plan into a governed execution loop. Without this skill, drift checks and failure classification depend on the agent remembering to trigger them — which is unreliable. This skill makes those triggers mechanical, not discretionary.
+## 1. Initialization (Call once at task start)
 
----
-
-## Initialization (call once at task start, after Mission Anchor is written)
-
-Set iteration counter to 0. Record in `.agents/MISSION_ANCHOR.md`:
+Record in `.agents/MISSION_ANCHOR.md`:
 
 ```markdown
 ## Loop State
@@ -22,90 +18,38 @@ Set iteration counter to 0. Record in `.agents/MISSION_ANCHOR.md`:
 - Status: RUNNING
 ```
 
----
+## 2. Per-Iteration Protocol
 
-## Per-iteration protocol
+Execute for every iteration:
 
-Execute this sequence for every iteration of the task loop:
-
-```
 1. Increment iteration counter.
-2. Execute the planned action for this iteration.
-3. If the action FAILS:
-   a. Call failure-classifier before any retry.
+2. Execute the planned action.
+3. If FAILS:
+   a. Call failure-classifier before retry.
    b. Increment consecutive failure counter.
-   c. If consecutive failures == 2 → escalate to Tier 2.
-   d. If consecutive failures == 3 → escalate to Tier 3, stop loop.
-4. If the action SUCCEEDS:
+   c. If == 2 -> escalate to Tier 2.
+   d. If == 3 -> escalate to Tier 3, stop loop.
+4. If SUCCEEDS:
    a. Reset consecutive failure counter to 0.
-5. If iteration counter is a multiple of 3 → call scope-drift-detector.
-6. If any immediate risk signal occurs → call scope-drift-detector regardless of counter.
-```
+5. If iteration counter % 3 == 0 -> call scope-drift-detector.
+6. If immediate risk signal occurs -> call scope-drift-detector.
 
-### Immediate risk signals (trigger drift check out of cycle)
+### Immediate Risk Signals
+- Plan changes
+- >3 files modified
+- Dependency/config modified
+- Guessed external package
+- Network/install/deploy/destructive action
 
-- Implementation plan changes
-- More than 3 files modified in one iteration
-- Dependency or config file modified
-- External package name was guessed rather than verified
-- Network, install, deploy, or destructive action requested
+## 3. Checkpoint Triggers
+Call `bash .agents/scripts/checkpoint.sh "before_<action>"`:
+- **Medium Risk**: Config change, dependency install, rename/delete, edit >3 files.
+- **High Risk**: Destructive command, firmware flash, CI/CD change, `.env`, production deploy.
 
----
-
-## Checkpoint triggers (within the loop)
-
-Call `bash .agents/scripts/checkpoint.sh "before_<action>"` before any action classified as:
-
-| Risk level | When to checkpoint |
-|---|---|
-| Medium | Config change, dependency install, rename/delete, editing >3 files |
-| High | Destructive command, firmware flash, CI/CD change, `.env` edit, production deploy |
-
-Low-risk iterations: no checkpoint needed.
-
----
-
-## Loop termination conditions
-
-The loop ends when:
-
-| Condition | Action |
-|---|---|
-| Success condition from Mission Anchor is met | Mark `Status: DONE`. Call `docs-status-handoff`. |
-| Tier 3 escalation triggered | Mark `Status: ESCALATED`. Stop. Hand over context. |
-| Stop condition from Mission Anchor is met | Mark `Status: STOPPED`. Report to user. |
-| User explicitly ends the task | Mark `Status: INTERRUPTED`. |
+## 4. Loop Termination Conditions
+- Success condition met -> Status: DONE. Call `docs-status-handoff`.
+- Tier 3 triggered -> Status: ESCALATED. Stop.
+- Stop condition met -> Status: STOPPED.
+- User explicitly ends -> Status: INTERRUPTED.
 
 Update Loop State in `.agents/MISSION_ANCHOR.md` on termination.
-
----
-
-## Loop State format (update after each iteration)
-
-```markdown
-## Loop State
-- Iteration: <N>
-- Last drift check: Iteration <M> — <CONTINUE/REPLAN/ESCALATE>
-- Consecutive failures: <N>
-- Status: RUNNING / DONE / ESCALATED / STOPPED / INTERRUPTED
-```
-
----
-
-## Integration with other components
-
-- **Project Orchestrator (Layer 1)**: Writes the Mission Anchor and hands off to Loop Executor.
-- **scope-drift-detector (Layer 4)**: Called every 3 iterations and on risk signals.
-- **failure-classifier (Layer 5)**: Called before every retry.
-- **harness-engineer**: Bootstraps the checkpoint script before the loop starts.
-- **docs-status-handoff (Layer 6)**: Called on successful loop termination.
-
----
-
-## Minimal overhead note
-
-This skill does not require reading the full skill file on every iteration. The agent only needs to:
-1. Maintain the Loop State block in `MISSION_ANCHOR.md` (already open).
-2. Know the two trigger numbers: **every 3 iterations** and **after 2 consecutive failures**.
-
-Full skill reload is only needed if the loop protocol itself needs to be consulted.

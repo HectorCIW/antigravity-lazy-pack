@@ -4,67 +4,27 @@ description: Use when creating, upgrading, auditing, or adapting the project har
 ---
 # Harness Engineer
 
-## Goal
-Maintain a reusable, safe, project-neutral operating harness that lets Antigravity work consistently across repositories without resetting the workflow each time.
+> For detailed design rationale and examples, read `references/rationale.md`.
 
-## When to use
-Use this skill when the user asks to:
-- set up a new project from the universal starter pack
-- adapt the starter pack to a specific repository
-- add or revise skills
-- improve command safety, logging, testing, or project handoff
-- audit whether the current project has a complete agent harness
-- create project-specific extensions without polluting the global starter
-
-## Core responsibilities
-1. Inspect the current repository structure and detect the stack.
-2. Check whether the standard harness files exist:
-   - `AGENTS.md`
-   - `PROJECT_STATUS.md`
-   - `.agents/COMMAND_LOG.md`
-   - `.agents/MISSION_ANCHOR.md` (written at task start by scope-drift-detector)
-   - `.agents/checkpoints/` (created by checkpoint script before risky operations)
-   - `.agents/scripts/checkpoint.sh` (see Checkpoint procedure below)
-   - `.agents/scripts/` for dynamic helper scripts
-   - optional `.agents/skills/` for project-local skills
-3. Confirm that global reusable skills remain generic and project-specific rules stay inside the project.
-4. Ensure safety rules are explicit for terminal commands, Git operations, secrets, data files, and generated outputs.
-5. Ensure run/test/build commands are documented.
-6. Add only the smallest necessary project-specific extension.
-
-## Universal harness checklist
-A healthy project should have:
-- a clear project purpose in `PROJECT_STATUS.md`
-- run and test commands, or a note that they are not known yet
-- safety constraints in `AGENTS.md` (including the Autonomous Safety Policy)
-- command logging through `.agents/COMMAND_LOG.md`
-- a Mission Anchor written before each task in `.agents/MISSION_ANCHOR.md`
-- a checkpoint script at `.agents/scripts/checkpoint.sh`
-- code/data/docs workflow rules where relevant
-- explicit protected files or directories when needed
-- no secrets, credentials, or private data copied into status files
-
-## Procedure
-1. Start with `project-context-digest` to understand the project.
-2. If `.agents/scripts/checkpoint.sh` does not exist, bootstrap it immediately (see Checkpoint procedure below) before any other action. Also initialize `.agents/COMMAND_LOG.md` if it does not exist.
-3. Use `dependency-env-harness` to detect the stack and likely commands.
-4. Use `privacy-secret-guard` before reading config, logs, `.env`, credentials, or private data.
-5. Write the Mission Anchor (`scope-drift-detector`) before any implementation begins.
-6. Run `bash .agents/scripts/checkpoint.sh "before_<task_name>"` before any medium or high-risk operation.
-7. After any failure, use `failure-classifier` before retrying.
+## 1. Procedure
+1. Start with `project-context-digest`.
+2. If `.agents/scripts/checkpoint.sh` does not exist, bootstrap it (see Bootstraps). Also initialize `.agents/COMMAND_LOG.md` and `.agents/scripts/compliance_check.sh`.
+3. Use `dependency-env-harness` to detect stack.
+4. Use `privacy-secret-guard` before reading sensitive data.
+5. Write Mission Anchor before implementation.
+6. Run `bash .agents/scripts/checkpoint.sh "before_<task>"` before medium/high risk operations.
+7. After failure, use `failure-classifier`.
 8. Prefer updating templates/status files over modifying source code.
-9. If creating a new skill, keep it narrow, named clearly, and triggerable from its description.
-10. After changes, use `docs-status-handoff` to update project status.
+9. Keep new skills narrow and triggerable.
+10. Update project status with `docs-status-handoff`.
 
-## Checkpoint procedure
+## 2. Bootstraps
 
-Bootstrap the checkpoint script into every project:
-
+### Checkpoint Script
 ```bash
 mkdir -p .agents/checkpoints .agents/scripts
-cat > .agents/scripts/checkpoint.sh << 'EOF'
+cat > .agents/scripts/checkpoint.sh << 'BASH_EOF'
 #!/usr/bin/env bash
-# Usage: bash .agents/scripts/checkpoint.sh "before_config_change"
 LABEL=${1:-"checkpoint"}
 STAMP=$(date +"%Y-%m-%d_%H%M%S")
 OUT_DIR=".agents/checkpoints"
@@ -74,55 +34,33 @@ if git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
   git diff > "$OUT_DIR/${STAMP}_${LABEL}.patch"
   echo "Checkpoint saved: ${STAMP}_${LABEL}.patch"
 else
-  echo "Not a git repo — copying touched files not implemented. Initialize git first."
+  echo "Not a git repo."
 fi
-EOF
+BASH_EOF
 chmod +x .agents/scripts/checkpoint.sh
 ```
 
-Call the checkpoint script before any medium or high-risk operation:
-
+### Compliance Script
 ```bash
-bash .agents/scripts/checkpoint.sh "before_<operation_name>"
+cat > .agents/scripts/compliance_check.sh << 'BASH_EOF'
+#!/usr/bin/env bash
+echo "--- Compliance Check ---"
+[ -f .agents/MISSION_ANCHOR.md ] && echo "✅ MISSION_ANCHOR.md found" || echo "❌ MISSION_ANCHOR.md missing"
+[ -f .agents/COMMAND_LOG.md ] && echo "✅ COMMAND_LOG.md found" || echo "❌ COMMAND_LOG.md missing"
+[ -f .agents/scripts/checkpoint.sh ] && echo "✅ checkpoint.sh found" || echo "❌ checkpoint.sh missing"
+BASH_EOF
+chmod +x .agents/scripts/compliance_check.sh
 ```
 
-Risk classification for checkpoints:
-
-| Risk level | Examples | Action |
-|---|---|---|
-| Low | Edit 1–2 in-scope source files, update docs | No checkpoint needed |
-| Medium | Config change, dependency install, rename/delete, edit >3 files | Patch checkpoint |
-| High | Destructive command, firmware flash, production deploy, CI/CD change, `.env` edit | Checkpoint + Tier 2 confirmation |
-
-## Escalation tiers
+## 3. Escalation Tiers
 
 | Tier | Meaning | Agent behavior |
 |---|---|---|
-| **Tier 1: Inform** | Safe, reversible, in-scope (read-only or approved low-risk writes) | Proceed and log |
-| **Tier 2: Confirm** | Risky, external, broad, or semi-reversible | Pause and request user approval |
-| **Tier 3: Surrender** | Destructive, security-sensitive, unknown, or repeatedly failing | Stop and hand over full context |
+| **1: Inform** | Safe, reversible (reads, safe writes) | Proceed and log |
+| **2: Confirm** | Risky, external, broad | Pause and request user approval |
+| **3: Surrender** | Destructive, security risk, 3 fails | Stop and hand over |
 
-**Tier 1 examples:** read files, run tests/linters, inspect git status, edit 1–2 clearly in-scope files, update PROJECT_STATUS.md.
-
-**Tier 2 examples:** install packages, modify requirements/package.json/pyproject.toml, change config files, edit >3 files, rename/delete files, access files outside workspace, call external APIs, modify MCP config, change database schema.
-
-**Tier 3 examples:** `rm -rf`, `sudo`, `chmod -R`, `git reset --hard`, `git clean -fd`, force push, production deployment, firmware flashing, exposing secrets, editing `.env` with real keys, handling private clinical data, same failure after 3 attempts.
-
-## Separation rules
-- Put universal skills in `~/.gemini/config/skills/`.
-- Put project-specific skills in `<project-root>/.agents/skills/`.
-- Put project-specific facts in `PROJECT_STATUS.md`, not in global skills.
-- Put agent behavior rules in `AGENTS.md`.
-- Put command history in `.agents/COMMAND_LOG.md`.
-
-## Do not
-- Do not create broad, overlapping skills that duplicate existing harnesses.
-- Do not add domain-specific content to the universal starter unless it applies to most projects.
-- Do not weaken destructive-command confirmations.
-- Do not copy secrets into templates, logs, or status files.
-- Do not overwrite existing project-specific instructions without preserving or summarizing them.
-
-## Output format
+## 4. Output Format
 ```markdown
 ## Harness engineer review
 - Project type:
