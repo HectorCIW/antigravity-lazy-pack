@@ -16,6 +16,8 @@ description: 一次安裝所有 AntiGravity 懶人包技能。說「全部安裝
 7. **07-nrf-mcp** — 連接 Nordic nRF MCP
 8. **08-scope-drift-detector** — 任務錨點 + 六維飄移偵測（Autonomous Safety Policy v0.2）
 9. **09-failure-classifier** — 失敗分類器，retry 前必呼叫
+10. **10-loop-executor** — 執行引擎，強制每 3 次 iteration 自查並自動調用分類器
+11. **11-harness-engineer** — 專案 Harness 初始化與審查器
 
 每完成一個報告進度，最終回報總表。
 已安裝的工具自動跳過。
