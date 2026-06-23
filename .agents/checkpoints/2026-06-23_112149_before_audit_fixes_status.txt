@@ -1,0 +1,3 @@
+ M .agents/MISSION_ANCHOR.md
+?? .agents/checkpoints/
+?? .agents/scripts/checkpoint.sh
