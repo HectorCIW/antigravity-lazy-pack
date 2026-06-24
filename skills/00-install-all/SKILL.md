@@ -18,6 +18,7 @@ description: 一次安裝所有 AntiGravity 懶人包技能。說「全部安裝
 9. **09-failure-classifier** — 失敗分類器，retry 前必呼叫
 10. **10-loop-executor** — 執行引擎，強制每 3 次 iteration 自查並自動調用分類器
 11. **11-harness-engineer** — 專案 Harness 初始化與審查器
+12. **RTK (Rust Token Killer)** — 自動化安裝 `rtk` 並執行 `rtk init --agent antigravity`，實現終端機輸出 80% 的 Token 壓縮。
 
 每完成一個報告進度，最終回報總表。
 已安裝的工具自動跳過。

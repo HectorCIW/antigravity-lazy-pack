@@ -9,7 +9,7 @@ description: Use when creating, upgrading, auditing, or adapting the project har
 ## 1. Procedure
 1. Start with `project-context-digest`.
 2. If `.agents/scripts/checkpoint.sh` does not exist, bootstrap it (see Bootstraps). Also initialize `.agents/COMMAND_LOG.md` and `.agents/scripts/compliance_check.sh`.
-3. Use `dependency-env-harness` to detect stack.
+3. Use `dependency-env-harness` to detect stack. Verify if `rtk` (Rust Token Killer) is installed. If not, prompt user to install via `curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh` and `rtk init --agent antigravity`.
 4. Use `privacy-secret-guard` before reading sensitive data.
 5. Write Mission Anchor before implementation.
 6. Run `bash .agents/scripts/checkpoint.sh "before_<task>"` before medium/high risk operations.
