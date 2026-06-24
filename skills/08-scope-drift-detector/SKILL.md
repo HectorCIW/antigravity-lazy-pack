@@ -13,6 +13,7 @@ Create/overwrite `.agents/MISSION_ANCHOR.md`:
 ```markdown
 ## Mission Anchor
 **User intent:** <One sentence describing the exact requested outcome.>
+**Global Strategy:** <The chosen StraTA strategy from the planning phase.>
 **Allowed scope:** <Files, folders, commands, domains, packages explicitly in scope.>
 **Out of scope:** <Actions, files, or domains the agent must not touch unless explicitly approved.>
 **Success condition:** <How we know the task is complete.>
@@ -23,7 +24,7 @@ Create/overwrite `.agents/MISSION_ANCHOR.md`:
 
 | Dimension | PASS | WARN | FAIL |
 |---|---|---|---|
-| **Mission similarity** | Matches user intent | Adjacent but not requested | Solving different problem |
+| **Strategy adherence** | Strictly executing the Global Strategy | Minor workaround | Strategy pivoted without user approval |
 | **Constraint violation** | Within allowed scope | Touches allowed-but-sensitive | Explicitly out of scope |
 | **File scope change** | <=2 files, all in scope | 3 files, or 1 unexpected | >3 files, or outside scope |
 | **Tool/action mismatch** | Expected for this task | Workaround | No clear relation to task |
